@@ -58,7 +58,7 @@ class kmedians:
     @endcode
     
     """
-    
+
     def __init__(self, data, initial_centers, tolerance=0.001, ccore=True, **kwargs):
         """!
         @brief Constructor of clustering algorithm K-Medians.
@@ -78,14 +78,15 @@ class kmedians:
         self.__medians = initial_centers[:]
         self.__tolerance = tolerance
 
-        self.__metric = kwargs.get('metric', distance_metric(type_metric.EUCLIDEAN_SQUARE))
+        self.__metric = kwargs.get(
+            "metric", distance_metric(type_metric.EUCLIDEAN_SQUARE)
+        )
         if self.__metric is None:
             self.__metric = distance_metric(type_metric.EUCLIDEAN_SQUARE)
 
         self.__ccore = ccore and self.__metric.get_type() != type_metric.USER_DEFINED
         if self.__ccore:
             self.__ccore = ccore_library.workable()
-
 
     def process(self):
         """!
@@ -97,26 +98,37 @@ class kmedians:
         @see get_medians()
         
         """
-        
+
         if self.__ccore is True:
             ccore_metric = metric_wrapper.create_instance(self.__metric)
-            self.__clusters, self.__medians = wrapper.kmedians(self.__pointer_data, self.__medians, self.__tolerance, ccore_metric.get_pointer())
+            self.__clusters, self.__medians = wrapper.kmedians(
+                self.__pointer_data,
+                self.__medians,
+                self.__tolerance,
+                ccore_metric.get_pointer(),
+            )
 
         else:
-            changes = float('inf')
-             
+            changes = float("inf")
+
             # Check for dimension
             if len(self.__pointer_data[0]) != len(self.__medians[0]):
-                raise NameError('Dimension of the input data and dimension of the initial medians must be equal.')
-             
+                raise NameError(
+                    "Dimension of the input data and dimension of the initial medians must be equal."
+                )
+
             while changes > self.__tolerance:
                 self.__clusters = self.__update_clusters()
                 updated_centers = self.__update_medians()
-             
-                changes = max([self.__metric(self.__medians[index], updated_centers[index]) for index in range(len(updated_centers))])
-                 
-                self.__medians = updated_centers
 
+                changes = max(
+                    [
+                        self.__metric(self.__medians[index], updated_centers[index])
+                        for index in range(len(updated_centers))
+                    ]
+                )
+
+                self.__medians = updated_centers
 
     def get_clusters(self):
         """!
@@ -126,10 +138,9 @@ class kmedians:
         @see get_medians()
         
         """
-        
+
         return self.__clusters
-    
-    
+
     def get_medians(self):
         """!
         @brief Returns list of centers of allocated clusters.
@@ -141,7 +152,6 @@ class kmedians:
 
         return self.__medians
 
-
     def get_cluster_encoding(self):
         """!
         @brief Returns clustering result representation type that indicate how clusters are encoded.
@@ -151,9 +161,8 @@ class kmedians:
         @see get_clusters()
         
         """
-        
-        return type_encoding.CLUSTER_INDEX_LIST_SEPARATION
 
+        return type_encoding.CLUSTER_INDEX_LIST_SEPARATION
 
     def __update_clusters(self):
         """!
@@ -163,27 +172,28 @@ class kmedians:
         @return (list) updated clusters as list of clusters where each cluster contains indexes of objects from data.
         
         """
-        
+
         clusters = [[] for i in range(len(self.__medians))]
         for index_point in range(len(self.__pointer_data)):
             index_optim = -1
             dist_optim = 0.0
-             
+
             for index in range(len(self.__medians)):
-                dist = self.__metric(self.__pointer_data[index_point], self.__medians[index])
-                 
+                dist = self.__metric(
+                    self.__pointer_data[index_point], self.__medians[index]
+                )
+
                 if (dist < dist_optim) or (index is 0):
                     index_optim = index
                     dist_optim = dist
-             
+
             clusters[index_optim].append(index_point)
-            
+
         # If cluster is not able to capture object it should be removed
         clusters = [cluster for cluster in clusters if len(cluster) > 0]
-        
+
         return clusters
-    
-    
+
     def __update_medians(self):
         """!
         @brief Calculate medians of clusters in line with contained objects.
@@ -191,24 +201,32 @@ class kmedians:
         @return (list) list of medians for current number of clusters.
         
         """
-         
+
         medians = [[] for i in range(len(self.__clusters))]
-         
+
         for index in range(len(self.__clusters)):
-            medians[index] = [ 0.0 for i in range(len(self.__pointer_data[0]))]
+            medians[index] = [0.0 for i in range(len(self.__pointer_data[0]))]
             length_cluster = len(self.__clusters[index])
-            
+
             for index_dimension in range(len(self.__pointer_data[0])):
-                sorted_cluster = sorted(self.__clusters[index], key=lambda x: self.__pointer_data[x][index_dimension])
-                
+                sorted_cluster = sorted(
+                    self.__clusters[index],
+                    key=lambda x: self.__pointer_data[x][index_dimension],
+                )
+
                 relative_index_median = int(math.floor((length_cluster - 1) / 2))
                 index_median = sorted_cluster[relative_index_median]
-                
+
                 if (length_cluster % 2) == 0:
                     index_median_second = sorted_cluster[relative_index_median + 1]
-                    medians[index][index_dimension] = (self.__pointer_data[index_median][index_dimension] + self.__pointer_data[index_median_second][index_dimension]) / 2.0
-                    
+                    medians[index][index_dimension] = (
+                        self.__pointer_data[index_median][index_dimension]
+                        + self.__pointer_data[index_median_second][index_dimension]
+                    ) / 2.0
+
                 else:
-                    medians[index][index_dimension] = self.__pointer_data[index_median][index_dimension]
-             
+                    medians[index][index_dimension] = self.__pointer_data[index_median][
+                        index_dimension
+                    ]
+
         return medians
